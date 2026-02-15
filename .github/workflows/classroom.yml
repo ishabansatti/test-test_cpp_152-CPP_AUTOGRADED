@@ -14,32 +14,35 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor != 'github-classroom[bot]'
     steps:
+      # 1. Checkout repo
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # --- Positive Numbers Test ---
-      - name: Run Positive Numbers Test
-        id: SumUptoTest-PositiveNumbers
-        uses: classroom-resources/autograding-command-grader@v1
-        with:
-          command: "./bin/sum_up_test_positive.sh"
-          timeout: 10
+      # 2. Install dependencies
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ cmake libgtest-dev make
+          # Build Google Test from source
+          cd /usr/src/gtest
+          sudo cmake CMakeLists.txt
+          sudo make
+          sudo cp *.a /usr/lib
+          cd $GITHUB_WORKSPACE
 
-      # --- Edge Cases Test ---
-      - name: Run Edge Cases Test
-        id: SumUptoTest-EdgeCases
-        uses: classroom-resources/autograding-command-grader@v1
-        with:
-          command: "./bin/sum_up_test_edgecases.sh"
-          timeout: 10
+      # 3. Build test binary using Makefile
+      - name: Build tests
+        run: make all
 
-      # --- Reporter Step ---
+      # 4. Run tests and capture results
+      - name: Run tests
+        id: student_tests
+        run: make test
+
+      # 5. Autograding reporter
       - name: Autograding Reporter
         uses: classroom-resources/autograding-grading-reporter@v1
         with:
-          runners: |
-            sumuptotest-positivenumbers
-            sumuptotest-edgecases
+          runners: student_tests
         env:
-          SUMUPTEST_POSITIVENUMBERS_RESULTS: ${{ steps.sumuptotest-positivenumbers.outputs.result }}
-          SUMUPTEST_EDGECASES_RESULTS: ${{ steps.sumuptotest-edgecases.outputs.result }}
+          STUDENT_TEST_RESULTS: ${{ steps.student_tests.outputs.result }}
