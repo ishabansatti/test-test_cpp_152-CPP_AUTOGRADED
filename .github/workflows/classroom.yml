@@ -1,34 +1,45 @@
-name: C++ Autograding
-
+name: Autograding Tests
 on:
-  push:
-  pull_request:
+  - push
+  - workflow_dispatch
+  - repository_dispatch
+
+permissions:
+  checks: write
+  actions: read
+  contents: read
 
 jobs:
-  autograde:
+  run-autograding-tests:
     runs-on: ubuntu-latest
-
+    if: github.actor != 'github-classroom[bot]'
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y cmake g++
-
-      - name: Configure
-        run: cmake -S . -B build
-
-      - name: Build
-        run: cmake --build build
-
-      - name: Run tests and generate results
-        run: |
-          cd build
-          ctest --output-junit results.xml || true
-
-      - name: Autograding
-        uses: classroom-resources/autograding@v1
+      # --- Positive Numbers Test ---
+      - name: Run Positive Numbers Test
+        id: SumUptoTest-PositiveNumbers
+        uses: classroom-resources/autograding-command-grader@v1
         with:
-          path: build/results.xml
+          command: "./bin/sum_up_test_positive.sh"
+          timeout: 10
+
+      # --- Edge Cases Test ---
+      - name: Run Edge Cases Test
+        id: SumUptoTest-EdgeCases
+        uses: classroom-resources/autograding-command-grader@v1
+        with:
+          command: "./bin/sum_up_test_edgecases.sh"
+          timeout: 10
+
+      # --- Reporter Step ---
+      - name: Autograding Reporter
+        uses: classroom-resources/autograding-grading-reporter@v1
+        with:
+          runners: |
+            sumuptotest-positivenumbers
+            sumuptotest-edgecases
+        env:
+          SUMUPTEST_POSITIVENUMBERS_RESULTS: ${{ steps.sumuptotest-positivenumbers.outputs.result }}
+          SUMUPTEST_EDGECASES_RESULTS: ${{ steps.sumuptotest-edgecases.outputs.result }}
